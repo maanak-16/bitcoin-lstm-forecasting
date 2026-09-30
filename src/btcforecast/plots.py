@@ -74,12 +74,17 @@ def plot_zoom(preds, path, start="2021-04-15", end="2021-06-30"):
     return fig
 
 
+def fmt_p(p):
+    """p-value for display; tiny values read as < 0.001 rather than 0.000."""
+    return "< 0.001" if p < 0.001 else f"{p:.3f}"
+
+
 def to_markdown(overall):
     lines = ["| Model | MAE (USD) | RMSE (USD) | MAPE | Direction | DM vs naive (p) |",
              "|---|---:|---:|---:|---:|---:|"]
     for _, r in overall.iterrows():
         direction = "–" if pd.isna(r.Direction) else f"{r.Direction:.1f}%"
-        dm = "–" if pd.isna(r.get("DM_p")) else f"{r.DM_stat:+.2f} ({r.DM_p:.3f})"
+        dm = "–" if pd.isna(r.get("DM_p")) else f"{r.DM_stat:+.2f} ({fmt_p(r.DM_p)})"
         lines.append(f"| {r.model} | {r.MAE:,.0f} | {r.RMSE:,.0f} | {r.MAPE:.2f}% "
                      f"| {direction} | {dm} |")
     return "\n".join(lines)
@@ -97,16 +102,17 @@ def findings(overall, benchmark="Naive"):
                    "significantly worse than" if r.DM_p < 0.05 else
                    "not significantly different from")
         lines.append(f"- **{r.model}**: MAE {change:+.1f}% vs naive; "
-                     f"{verdict} naive (Diebold-Mariano p = {r.DM_p:.3f}).")
+                     f"{verdict} naive (Diebold-Mariano p {'<' if r.DM_p < 0.001 else '='} "
+                     f"{fmt_p(r.DM_p).lstrip('< ')}).")
     return "\n".join(lines)
 
 
 def update_readme(readme_path, table, overall):
     """Replace the auto-generated results block in the README, if the markers exist."""
     start, end = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
-    text = readme_path.read_text() if readme_path.exists() else ""
+    text = readme_path.read_text(encoding="utf-8") if readme_path.exists() else ""
     if start not in text or end not in text:
         return
     block = f"{start}\n{table}\n\n{findings(overall)}\n{end}"
     before, rest = text.split(start, 1)
-    readme_path.write_text(before + block + rest.split(end, 1)[1])
+    readme_path.write_text(before + block + rest.split(end, 1)[1], encoding="utf-8")

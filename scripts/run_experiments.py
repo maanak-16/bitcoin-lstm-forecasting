@@ -24,8 +24,6 @@ from btcforecast.features import add_features  # noqa: E402
 from btcforecast.plots import (plot_folds, plot_relative_mae, plot_zoom,  # noqa: E402
                                to_markdown, update_readme)
 
-RESULTS = ROOT / "results"
-FIGURES = RESULTS / "figures"
 
 
 def audit_table(feat):
@@ -47,6 +45,11 @@ def main():
     p.add_argument("--seeds", type=int, default=3)
     args = p.parse_args()
 
+    # Partial runs (--skip-lstm / --quick) go to their own folder so they never
+    # overwrite the published full results or the README table.
+    full_run = not (args.skip_lstm or args.quick)
+    RESULTS = ROOT / "results" if full_run else ROOT / "results" / "partial_run"
+    FIGURES = RESULTS / "figures"
     FIGURES.mkdir(parents=True, exist_ok=True)
     feat = add_features(load_prices())
     print(f"Data: {feat.index[0].date()} to {feat.index[-1].date()} ({len(feat)} days)")
@@ -65,13 +68,14 @@ def main():
     by_fold.to_csv(RESULTS / "metrics_by_fold.csv", index=False)
     overall.to_csv(RESULTS / "metrics_overall.csv", index=False)
     table = to_markdown(overall)
-    (RESULTS / "metrics_overall.md").write_text(table + "\n")
+    (RESULTS / "metrics_overall.md").write_text(table + "\n", encoding="utf-8")
     print("\n" + table)
 
     plot_folds(feat, FIGURES / "walk_forward_design.png", TEST_YEARS)
     plot_relative_mae(by_fold, FIGURES / "relative_mae_by_year.png")
     plot_zoom(preds, FIGURES / "forecasts_may_2021.png")
-    update_readme(ROOT / "README.md", table, overall)
+    if full_run:
+        update_readme(ROOT / "README.md", table, overall)
     print(f"\nWrote results to {RESULTS}")
 
 

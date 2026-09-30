@@ -92,5 +92,26 @@ class TestData(unittest.TestCase):
         self.assertTrue((df > 0).all().all())
 
 
+class TestReadmeUpdate(unittest.TestCase):
+    def test_update_keeps_utf8_characters(self):
+        """Regression: on Windows the default encoding once corrupted ×, – and ≈."""
+        import tempfile
+        from btcforecast.plots import update_readme
+        overall = pd.DataFrame([
+            {"model": "Naive", "MAE": 10.0, "DM_stat": np.nan, "DM_p": np.nan},
+            {"model": "Ridge", "MAE": 11.0, "DM_stat": 1.0, "DM_p": 0.3},
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "README.md"
+            path.write_bytes("4.8× – ≈\n<!-- RESULTS:START -->\nSTALE_BLOCK\n<!-- RESULTS:END -->\nend →\n"
+                             .encode("utf-8"))
+            update_readme(path, "| – |", overall)
+            text = path.read_bytes().decode("utf-8")  # raises if not valid UTF-8
+        self.assertIn("4.8× – ≈", text)
+        self.assertIn("| – |", text)
+        self.assertIn("end →", text)
+        self.assertNotIn("STALE_BLOCK", text)
+
+
 if __name__ == "__main__":
     unittest.main()
