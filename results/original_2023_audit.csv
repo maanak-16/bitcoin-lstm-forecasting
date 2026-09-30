@@ -1,0 +1,4 @@
+item,usd
+MAE printed in 2023 notebook,1765.903375582367
+MAE after correcting the inverse scaling,2257.018689330418
+"Naive 'tomorrow = today' MAE, same test days",472.1177602368421
